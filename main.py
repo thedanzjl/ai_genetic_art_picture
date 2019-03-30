@@ -14,7 +14,7 @@ num_genes = 70
 num_generations = 10000
 k_best = 0.15
 mute = 0.1
-alpha = 0.2
+alpha = 0.5
 src_filename = "mona.jpg"
 
 
@@ -162,7 +162,8 @@ class TriangleGene:
 
         if random.random() < mute:
             self.color = (self.color[0] + random.randint(*color_mute),
-                          self.color[1] + random.randint(*color_mute), self.color[2] + random.randint(*color_mute))
+                          self.color[1] + random.randint(*color_mute),
+                          self.color[2] + random.randint(*color_mute))
 
         if random.random() < mute:
             pt1 = [0, 0]
@@ -217,14 +218,14 @@ class Chromosome:
 
     def __init__(self, genes=None):
         if genes is None:
-            self.genes = [CircleGene() for _ in range(num_genes)]
+            self.genes = [TriangleGene() for _ in range(num_genes)]
         else:
             self.genes = genes
         self.fitness = self.get_fitness()
 
     def get_fitness(self):  # less fitness -> better
         diff = np.sum( (image.astype("float") - self.get_image().astype("float")) ** 2 )
-        diff = diff / float(IMAGE_SIZE[0] * IMAGE_SIZE[1])
+        diff /= float(IMAGE_SIZE[0] * IMAGE_SIZE[1])
         return diff
 
     def __add__(self, other):  # mating
@@ -237,12 +238,11 @@ class Chromosome:
     def get_image(self):
         origin = np.full((*IMAGE_SIZE, 3), 255, np.uint8)
         for gene in self.genes:
-            output = origin.copy()
             overlay = origin.copy()
             gene.draw(overlay)
-            cv2.addWeighted(overlay, alpha, output, 1-alpha, 0, output)
-            origin = output
+            cv2.addWeighted(overlay, alpha, origin, 1-alpha, 0, origin)
         return origin
+
 
     def __lt__(self, other):
         return self.fitness < other.fitness
@@ -270,7 +270,6 @@ class GeneticImage:
                         random_i += 1
                     parent2 = old_population[random_i]
                     child = parent1 + parent2   # crossover
-                    # result_population.append(parent1)
                     result_population.append(child)
 
             self.population = result_population
