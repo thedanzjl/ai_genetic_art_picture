@@ -7,14 +7,16 @@ from tqdm import tqdm
 
 
 #  Definitions
-IMAGE_SIZE = (512, 512)
-mutation_chance = 0.15
+IMAGE_SIZE = (256, 256)
+mutation_chance = 0.1
 num_population = 50
-num_genes = 150
+num_genes = 70
 num_generations = 10000
 k_best = 0.15
-mute = 0.15
-src_filename = "doggo.jpg"
+mute = 0.1
+alpha = 0.2
+src_filename = "mona.jpg"
+
 
 image = cv2.imread(src_filename)
 image = cv2.resize(image, IMAGE_SIZE)
@@ -81,12 +83,15 @@ class EllipseGene:
 
         self.location = [tuple(center), tuple(axis), angel, self.location[3], self.location[4]]
 
+    def draw(self, overlay):
+        cv2.ellipse(overlay, *self.location, self.color, -1)
+
 
 class CircleGene:
 
     def __init__(self):
         center = (random.randint(0, IMAGE_SIZE[0]), random.randint(0, IMAGE_SIZE[1]))
-        radius = random.randint(IMAGE_SIZE[0]/8, IMAGE_SIZE[0]/4)
+        radius = random.randint(int(IMAGE_SIZE[0]/8), int(IMAGE_SIZE[0]/4))
         self.color = [random.randint(0, 255) for _ in range(3)]
         self.location = [
             center, radius
@@ -128,6 +133,85 @@ class CircleGene:
 
         self.location = [tuple(center), radius]
 
+    def draw(self, overlay):
+        cv2.circle(overlay, *self.location, self.color, -1)
+
+
+class TriangleGene:
+
+    def __init__(self):
+        self.color = [random.randint(0, 255) for _ in range(3)]
+        x, y = (random.randint(0, IMAGE_SIZE[0]), random.randint(0, IMAGE_SIZE[1]))
+        self.location = list()
+        for _ in range(3):
+            ptx = int(x + random.randint(0, IMAGE_SIZE[0]) - IMAGE_SIZE[0]/2)
+            if ptx < 0:
+                ptx = 0
+            if ptx > IMAGE_SIZE[0]:
+                ptx = IMAGE_SIZE[0]
+            pty = int(y + random.randint(0, IMAGE_SIZE[1]) - IMAGE_SIZE[1]/2)
+            if pty < 0:
+                pty = 0
+            if pty > IMAGE_SIZE[1]:
+                pty = IMAGE_SIZE[1]
+            self.location.append((ptx, pty))
+
+    def mutate(self):
+        color_mute = (int(-256 * mute), int(256 * mute))
+        location_mute = (int(-IMAGE_SIZE[0] * mute), int(IMAGE_SIZE[1] * mute))
+
+        if random.random() < mute:
+            self.color = (self.color[0] + random.randint(*color_mute),
+                          self.color[1] + random.randint(*color_mute), self.color[2] + random.randint(*color_mute))
+
+        if random.random() < mute:
+            pt1 = [0, 0]
+            pt1[0] = self.location[0][0] + random.randint(*location_mute)
+            if pt1[0] < 0:
+                pt1[0] = 0
+            if pt1[0] > IMAGE_SIZE[0]:
+                pt1[0] = IMAGE_SIZE[0]
+
+            pt1[1] = self.location[0][1] + random.randint(*location_mute)
+            if pt1[1] < 0:
+                pt1[1] = 0
+            if pt1[1] > IMAGE_SIZE[1]:
+                pt1[1] = IMAGE_SIZE[1]
+
+            pt2 = [0, 0]
+            pt2[0] = self.location[1][0] + random.randint(*location_mute)
+            if pt2[0] < 0:
+                pt2[0] = 0
+            if pt2[0] > IMAGE_SIZE[0]:
+                pt2[0] = IMAGE_SIZE[0]
+
+            pt2[1] = self.location[1][1] + random.randint(*location_mute)
+            if pt2[1] < 0:
+                pt2[1] = 0
+            if pt2[1] > IMAGE_SIZE[1]:
+                pt2[1] = IMAGE_SIZE[1]
+
+            pt3 = [0, 0]
+            pt3[0] = self.location[2][0] + random.randint(*location_mute)
+            if pt3[0] < 0:
+                pt3[0] = 0
+            if pt3[0] > IMAGE_SIZE[0]:
+                pt3[0] = IMAGE_SIZE[0]
+
+            pt3[1] = self.location[2][1] + random.randint(*location_mute)
+            if pt3[1] < 0:
+                pt3[1] = 0
+            if pt3[1] > IMAGE_SIZE[1]:
+                pt3[1] = IMAGE_SIZE[1]
+
+        else:
+            pt1, pt2, pt3 = self.location
+
+        self.location = [tuple(pt1), tuple(pt2), tuple(pt3)]
+
+    def draw(self, overlay):
+        cv2.drawContours(overlay, [np.array(self.location)], 0, self.color, -1)
+
 
 class Chromosome:
 
@@ -151,13 +235,11 @@ class Chromosome:
         return Chromosome(genes=genes)
 
     def get_image(self):
-        origin = np.full((*IMAGE_SIZE, 3), 0, np.uint8)
-        alpha = 0.2
+        origin = np.full((*IMAGE_SIZE, 3), 255, np.uint8)
         for gene in self.genes:
             output = origin.copy()
             overlay = origin.copy()
-            # cv2.ellipse(overlay, *gene.location, gene.color, -1)
-            cv2.circle(overlay, *gene.location, gene.color, -1)
+            gene.draw(overlay)
             cv2.addWeighted(overlay, alpha, output, 1-alpha, 0, output)
             origin = output
         return origin
@@ -188,7 +270,7 @@ class GeneticImage:
                         random_i += 1
                     parent2 = old_population[random_i]
                     child = parent1 + parent2   # crossover
-                    result_population.append(parent1)
+                    # result_population.append(parent1)
                     result_population.append(child)
 
             self.population = result_population
