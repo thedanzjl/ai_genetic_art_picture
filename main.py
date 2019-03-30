@@ -8,19 +8,19 @@ from tqdm import tqdm
 
 #  Definitions
 IMAGE_SIZE = (512, 512)
-mutation_chance = 0.02
-num_population = 35
-num_genes = 60
+mutation_chance = 0.15
+num_population = 50
+num_genes = 150
 num_generations = 10000
 k_best = 0.15
 mute = 0.15
-src_filename = "mona.jpg"
+src_filename = "doggo.jpg"
 
 image = cv2.imread(src_filename)
 image = cv2.resize(image, IMAGE_SIZE)
 
 
-class Gene:
+class EllipseGene:
 
     def __init__(self):
         # [ center, axis, angel, startAngel, endAngel ]
@@ -38,62 +38,116 @@ class Gene:
         color_mute = (int(-256 * mute), int(256 * mute))
         location_mute = (int(-IMAGE_SIZE[0] * mute), int(IMAGE_SIZE[1] * mute))
         angel_mute = (int(-180 * mute), int(180 * mute))
-        # for gene in self.genes:
-        self.color = (self.color[0] + random.randint(*color_mute),
-                      self.color[1] + random.randint(*color_mute), self.color[2] + random.randint(*color_mute))
-        # [ (0, 1), (2, 3), 4, 5, 6 ]
+        if random.random() < mute:
+            self.color = (self.color[0] + random.randint(*color_mute),
+                          self.color[1] + random.randint(*color_mute), self.color[2] + random.randint(*color_mute))
 
-        center = [0, 0]
-        center[0] = self.location[0][0] + random.randint(*location_mute)
-        if center[0] < 0:
-            center[0] = 0
-        if center[0] > IMAGE_SIZE[0]:
-            center[0] = IMAGE_SIZE[0]
+        if random.random() < mute:
+            center = [0, 0]
+            center[0] = self.location[0][0] + random.randint(*location_mute)
+            if center[0] < 0:
+                center[0] = 0
+            if center[0] > IMAGE_SIZE[0]:
+                center[0] = IMAGE_SIZE[0]
 
-        center[1] = self.location[0][1] + random.randint(*location_mute)
-        if center[1] < 0:
-            center[1] = 0
-        if center[1] > IMAGE_SIZE[1]:
-            center[1] = IMAGE_SIZE[1]
+            center[1] = self.location[0][1] + random.randint(*location_mute)
+            if center[1] < 0:
+                center[1] = 0
+            if center[1] > IMAGE_SIZE[1]:
+                center[1] = IMAGE_SIZE[1]
+        else:
+            center = self.location[0]
 
-        axis = [0, 0]
-        axis[0] = self.location[1][0] + random.randint(*location_mute)
-        if axis[0] < 0:
-            axis[0] = 0
-        if axis[0] > IMAGE_SIZE[0]:
-            axis[0] = IMAGE_SIZE[0]
+        if random.random() < mute:
+            axis = [0, 0]
+            axis[0] = self.location[1][0] + random.randint(*location_mute)
+            if axis[0] < 0:
+                axis[0] = 0
+            if axis[0] > IMAGE_SIZE[0]:
+                axis[0] = IMAGE_SIZE[0]
 
-        axis[1] = self.location[1][1] + random.randint(*location_mute)
-        if axis[1] < 0:
-            axis[1] = 0
-        if axis[1] > IMAGE_SIZE[1]:
-            axis[1] = IMAGE_SIZE[1]
+            axis[1] = self.location[1][1] + random.randint(*location_mute)
+            if axis[1] < 0:
+                axis[1] = 0
+            if axis[1] > IMAGE_SIZE[1]:
+                axis[1] = IMAGE_SIZE[1]
+        else:
+            axis = self.location[1]
 
-        angel = self.location[2] + random.randint(*angel_mute)
+        if random.random() < mute:
+            angel = self.location[2] + random.randint(*angel_mute)
+        else:
+            angel = self.location[2]
 
         self.location = [tuple(center), tuple(axis), angel, self.location[3], self.location[4]]
+
+
+class CircleGene:
+
+    def __init__(self):
+        center = (random.randint(0, IMAGE_SIZE[0]), random.randint(0, IMAGE_SIZE[1]))
+        radius = random.randint(IMAGE_SIZE[0]/8, IMAGE_SIZE[0]/4)
+        self.color = [random.randint(0, 255) for _ in range(3)]
+        self.location = [
+            center, radius
+        ]
+
+    def mutate(self):
+        color_mute = (int(-256 * mute), int(256 * mute))
+        radius_mute = (int(-512 * mute), int(512 * mute))
+        location_mute = (int(-IMAGE_SIZE[0] * mute), int(IMAGE_SIZE[1] * mute))
+
+        if random.random() < mute:
+            self.color = (self.color[0] + random.randint(*color_mute),
+                          self.color[1] + random.randint(*color_mute), self.color[2] + random.randint(*color_mute))
+
+        if random.random() < mute:
+            center = [0, 0]
+            center[0] = self.location[0][0] + random.randint(*location_mute)
+            if center[0] < 0:
+                center[0] = 0
+            if center[0] > IMAGE_SIZE[0]:
+                center[0] = IMAGE_SIZE[0]
+
+            center[1] = self.location[0][1] + random.randint(*location_mute)
+            if center[1] < 0:
+                center[1] = 0
+            if center[1] > IMAGE_SIZE[1]:
+                center[1] = IMAGE_SIZE[1]
+        else:
+            center = self.location[0]
+
+        if random.random() < mute:
+            radius = self.location[1] + random.randint(*radius_mute)
+            if radius < 0:
+                radius = 0
+            if radius > IMAGE_SIZE[0]:
+                radius = IMAGE_SIZE[0]
+        else:
+            radius = self.location[1]
+
+        self.location = [tuple(center), radius]
 
 
 class Chromosome:
 
     def __init__(self, genes=None):
         if genes is None:
-            self.genes = [Gene() for _ in range(num_genes)]
+            self.genes = [CircleGene() for _ in range(num_genes)]
         else:
             self.genes = genes
         self.fitness = self.get_fitness()
 
-    def get_fitness(self):  # more fitness -> better
-        diff = abs(np.sum(abs(image - self.get_image())))
-        diff = 1 - diff / (IMAGE_SIZE[0] * IMAGE_SIZE[1] * 3 * 256)
+    def get_fitness(self):  # less fitness -> better
+        diff = np.sum( (image.astype("float") - self.get_image().astype("float")) ** 2 )
+        diff = diff / float(IMAGE_SIZE[0] * IMAGE_SIZE[1])
         return diff
 
     def __add__(self, other):  # mating
         genes = deepcopy(self.genes) \
             if random.choice([0, 1]) else deepcopy(other.genes)
         for gene in genes:
-            if random.random() <= mutation_chance:
-                gene.mutate()
+            gene.mutate()
         return Chromosome(genes=genes)
 
     def get_image(self):
@@ -102,7 +156,8 @@ class Chromosome:
         for gene in self.genes:
             output = origin.copy()
             overlay = origin.copy()
-            cv2.ellipse(overlay, *gene.location, gene.color, -1)
+            # cv2.ellipse(overlay, *gene.location, gene.color, -1)
+            cv2.circle(overlay, *gene.location, gene.color, -1)
             cv2.addWeighted(overlay, alpha, output, 1-alpha, 0, output)
             origin = output
         return origin
@@ -117,9 +172,9 @@ class GeneticImage:
         self.population = [Chromosome() for _ in range(num_population)]
 
     def generate_population(self):
-        for generation in tqdm(range(num_generations)):
+        for generation in tqdm(range(num_generations), unit='generation'):
             old_population = self.population
-            old_population.sort(reverse=True)
+            old_population.sort(reverse=False)
             num_best = math.floor(num_population * k_best)
             num_rand = math.ceil(1. / k_best)
             result_population = list()
@@ -141,8 +196,8 @@ class GeneticImage:
 
     @staticmethod
     def best_chromosome(population):
-        result = max(population, key=lambda x: x.fitness)
-        print(result.fitness)
+        result = min(population, key=lambda x: x.fitness)
+        # print(result.fitness)
         return result
 
 
