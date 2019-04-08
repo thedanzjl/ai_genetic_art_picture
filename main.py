@@ -3,22 +3,17 @@ import random
 import numpy as np
 from copy import deepcopy
 from tqdm import tqdm
+import argparse
 
 
 #  Definitions
 IMAGE_SIZE = (256, 256)
 mutation_chance = 0.2
-num_population = 2
 num_genes = 2500
-num_generations = 1000000000
+num_generations = 50
 gene_deviation = 16
 location_mute = (-4, 4)  # define borders for location mutation
 alpha = 0.5
-src_filename = "image_test/billie.jpg"
-
-
-image = cv2.imread(src_filename)
-image = cv2.resize(image, IMAGE_SIZE)
 
 
 class Gene:
@@ -47,12 +42,10 @@ class Gene:
 
         if random.random() < mutation_chance:
             # mutate color
-
             if x > 255:
                 x = 255
             if y > 255:
                 y = 255
-
             r, g, b = image[x, y]
             self.color = (int(r), int(g), int(b))
 
@@ -165,7 +158,7 @@ class Chromosome:
 class GeneticImage:
 
     def __init__(self):
-        self.population = [Chromosome() for _ in range(num_population)]
+        self.population = [Chromosome() for _ in range(2)]
 
     def generate_population(self):
         for generation in tqdm(range(num_generations), unit='generation'):
@@ -187,7 +180,7 @@ class GeneticImage:
 
 
 def main():
-    print(src_filename)
+    print(f'working on {src_filename}...')
     ai = GeneticImage()
     for population in ai.generate_population():
         best_art = GeneticImage.best_chromosome(population)
@@ -195,8 +188,23 @@ def main():
         cv2.imshow(" ", im)
         cv2.waitKey(1)
 
+    im = cv2.resize(im, (512, 512))
+    cv2.imwrite('result', im)
     cv2.waitKey()
 
 
 if __name__ == '__main__':
+
+    src_filename = "image_test/loli.jpg"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path")
+    parser.add_argument("--generations")
+    args = parser.parse_args()
+    if args.path is not None:
+        src_filename = args.path
+    if args.generations is not None:
+        num_generations = args.generations
+
+    image = cv2.imread(src_filename)
+    image = cv2.resize(image, IMAGE_SIZE)
     main()
