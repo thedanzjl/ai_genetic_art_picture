@@ -7,15 +7,15 @@ from tqdm import tqdm
 
 
 #  Definitions
-IMAGE_SIZE = (512, 512)
+IMAGE_SIZE = (256, 256)
 mutation_chance = 0.1
-num_population = 50
-num_genes = 85
+num_population = 2
+num_genes = 2000
 num_generations = 1000000000
-k_best = 0.15
+k_best = 1
 mute = 0.1
 alpha = 0.5
-src_filename = "image_test/peppa_pig.jpg"
+src_filename = "image_test/mona.jpg"
 
 
 image = cv2.imread(src_filename)
@@ -29,12 +29,12 @@ class Gene:
         x, y = (random.randint(0, IMAGE_SIZE[0]), random.randint(0, IMAGE_SIZE[1]))
         self.location = list()
         for _ in range(3):
-            ptx = int(x + random.randint(0, IMAGE_SIZE[0]) - IMAGE_SIZE[0]/2)
+            ptx = int(x + random.randint(-15, 16))
             if ptx < 0:
                 ptx = 0
             if ptx > IMAGE_SIZE[0]:
                 ptx = IMAGE_SIZE[0]
-            pty = int(y + random.randint(0, IMAGE_SIZE[1]) - IMAGE_SIZE[1]/2)
+            pty = int(y + random.randint(-15, 16))
             if pty < 0:
                 pty = 0
             if pty > IMAGE_SIZE[1]:
@@ -42,15 +42,25 @@ class Gene:
             self.location.append((ptx, pty))
 
     def mutate(self):
-        color_mute = (int(-256 * mute), int(256 * mute))  # define borders for color mutation
-        location_mute = (int(-IMAGE_SIZE[0] * mute),
-                         int(IMAGE_SIZE[1] * mute))  # define borders for location mutation
+        location_mute = (-3, 3)  # define borders for location mutation
 
         if random.random() < mutation_chance:
             # mutate color
-            self.color = (self.color[0] + random.randint(*color_mute),
-                          self.color[1] + random.randint(*color_mute),
-                          self.color[2] + random.randint(*color_mute))
+
+            y = (self.location[0][0] + self.location[1][0] + self.location[2][0]) // 3
+            x = (self.location[0][1] + self.location[1][1] + self.location[2][1]) // 3
+
+            if x > 255:
+                x = 255
+            if y > 255:
+                y = 255
+
+            r, g, b = image[x, y]
+            self.color = (int(r), int(g), int(b))
+
+            # self.color = (self.color[0] + random.randint(*color_mute),
+            #               self.color[1] + random.randint(*color_mute),
+            #               self.color[2] + random.randint(*color_mute))
 
         if random.random() < mutation_chance:
             # mutate location
@@ -138,39 +148,49 @@ class GeneticImage:
 
     def __init__(self):
         self.population = [Chromosome() for _ in range(num_population)]
+        # self.c = Chromosome()
 
-    def generate_population(self):
+    # def generate_population(self):
+    #     for generation in tqdm(range(num_generations), unit='generation'):
+    #         old_population = self.population
+    #         old_population.sort(reverse=False)
+    #         num_best = math.floor(num_population * k_best)
+    #         num_rand = math.ceil(1. / k_best)
+    #         result_population = list()
+    #         # noinspection PyTypeChecker
+    #         for i in range(num_best):
+    #             # noinspection PyTypeChecker
+    #             for j in range(num_rand):
+    #                 parent1 = old_population[i]
+    #                 random_i = int(random.random() * num_best)
+    #                 while random_i == i:  # parents should not be the same
+    #                     random_i = int(random.random() * num_best)
+    #                 parent2 = old_population[random_i]
+    #                 child = parent1 + parent2   # crossover
+    #                 result_population.append(child)
+    #
+    #         self.population = result_population
+    #         yield result_population
+
+    def generate_population2(self):
         for generation in tqdm(range(num_generations), unit='generation'):
-            old_population = self.population
-            old_population.sort(reverse=False)
-            num_best = math.floor(num_population * k_best)
-            num_rand = math.ceil(1. / k_best)
-            result_population = list()
-            # noinspection PyTypeChecker
-            for i in range(num_best):
-                # noinspection PyTypeChecker
-                for j in range(num_rand):
-                    parent1 = old_population[i]
-                    random_i = int(random.random() * num_best)
-                    if random_i == i:  # parents should not be the same
-                        random_i += 1
-                    parent2 = old_population[random_i]
-                    child = parent1 + parent2   # crossover
-                    result_population.append(child)
-
-            self.population = result_population
-            yield result_population
+            child1 = self.population[0] + self.population[1]
+            child2 = self.population[0] + self.population[1]
+            self.population = [child1, child2]
+            yield self.population
 
     @staticmethod
     def best_chromosome(population):
-        result = min(population, key=lambda x: x.fitness)
+        result = None
+        if population:
+            result = min(population, key=lambda x: x.fitness)
         # print(result.fitness)
         return result
 
 
 def main():
     ai = GeneticImage()
-    for population in ai.generate_population():
+    for population in ai.generate_population2():
         best_art = GeneticImage.best_chromosome(population)
         im = best_art.get_image()
         cv2.imshow(" ", im)
